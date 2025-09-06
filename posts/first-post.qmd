@@ -1,0 +1,12 @@
+---
+title: "Hello Quarto"
+description: "Welcome to my Quarto portfolio"
+author: "Carlos Ojeda"
+date: "8/29/25"
+categories:
+  - reflection
+  - labreport
+draft: false
+---
+
+I am exited to take MicroP's at HMC since I would like to learn how to use them to automate tasks that are too repetitive and annoying to do among other things.

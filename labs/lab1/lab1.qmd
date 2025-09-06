@@ -1,0 +1,169 @@
+## Lab 1: FPGA and MCU Setup and Testing
+
+During this lab, we are tasked to make a 2.4Hz square wave, an and gate operation, a xor gate operation and a translator from binary introduced from switches into a hex number in a 7 segment display. These different tasks explore different types of skill when working with FPGA's.
+
+This Lab took around 12 hours to finish.
+
+### PCB soldering and circuits
+
+First, we have to make sure the FPGA setup will be adecuate for the E155 course, where we need to include all the components and verify the connections and board all work propperly. This helped me develop skills mainly in surface mounted devices, since it is a type of soldering I am not very familiar.
+
+![Board after Soldering](images\testcaseFPGA.jpeg)
+
+After getting the board set up, we started to work into making the circuit for the following parts of the lab. This required some amount of calculations and design choices that are gone more in depth later in this page. 
+
+![Block Diagram](images\Lab1diagram.png)
+
+![Circuit Diagram](images\Lab1top.png)
+
+It is also important to note that we had to program which pins are which in the FPGA setup:
+
+![FPGA pin setup](images\fpgapins.png)
+
+### and/xor gate operations
+
+This can be easily done in verilog by defining the output (an LED in this case) to be the "and" or "xor" operation of the desired inputs. This can be done as easily as:
+
+```{verilog, code-fold: true}
+assign led00 = s[0] ^ s[1]; //xor
+assign led10 = s[2] & s[3]; //and
+```
+
+### 2.4 Hz Timing
+
+In order to get a frequency as close as possible to 2.4Hz, we need to make a counter that resets 2.4 times per second, this can be achieved by making a large register counter (32 bits in my case) and considering that we have a clock speed of 48MHz and a desired frequency of 2.4Hz, we can do the following math:
+
+$$
+2.4 = \frac{f*c}{2^(N-1)}
+$$
+Where
+$$
+N = 32
+$$
+$$
+f = 48,000,000
+$$
+$$
+c = 215
+$$
+
+The value 215 was chosen to give us the closest frequency to the desired 2.4 Hz.
+This would result in a code that looks like this:
+
+```{verilog, code-fold: true}
+	always_ff @(posedge int_osc)
+		begin
+			counter <= counter + 215; //107 * 48,000,000 ~= 2.4 * 2^30, so a 2.4Hz square wave
+		end
+  assign fpga_blink_out = counter[31];
+```
+
+After getting this code working, we tested the signal generated using an oscilloscope and verified it was at 2.4Hz.
+
+![Oscilloscope trace](images\Oscprint.png)
+
+### 7 segment display
+
+To make the 7 segment display to work by being controlled by the UPduino board, we first need to consider that the 7 segment display we are using (HSDP-511A) works by grounding the pins to turn on the desired segment. This means that whenever we are making the logic on which segments turn on and off, we have to consider that 0 is on and 1 is off. This was made in System Verilog and tested using a testbench, where we made a test case for each of the possible combinations of 4 switches (16 tests). 
+
+![Testbench Trace](images\Testbench.png)
+
+Haiving the error vector always in 0's tells us that the testbench was successful. This better confirms that we will get a working FPGA programming.
+
+The next thing to decide was the resistance added to each pin. Adding an individual resistor per pin allows us to have a consistent brightness in every segment and segment combination. This resistance value was chosen to make current through each segment under 5mA, which is not even close to the maximum recomended, but it should extend its working life. This was done assuming a voltage drop of 2.1 volts as seen in the datasheet to be:
+
+$$
+0.005 > \frac{5-2.1}{R}
+$$
+$$
+R > 580
+$$
+
+In this case, we chose to use 1k resistors since they were visible and available.
+
+![Test with 9 in binary (1001) showing the right output](images\testcaseFPGA.jpeg)
+
+From this expected output image, we can see how the XOR LED is on and the AND led is off. This is expected since both modules work at the same time.
+
+### AI Prototype
+
+Using ChatGPT, we inputted the folowing prompt:
+
+Write SystemVerilog HDL to leverage the internal high speed oscillator in the Lattice UP5K FPGA and blink an LED at 2 Hz. Take full advantage of SystemVerilog syntax, for example, using logic instead of wire and reg.
+
+from which we got this code:
+
+```{verilog, code-fold: true}
+module led_blinker_2hz (
+    output logic led
+);
+
+    // High-speed internal oscillator output
+    logic clk_48mhz;
+
+    // Instantiate the HFOSC (internal high-frequency oscillator)
+    SB_HFOSC #(
+        .CLKHF_DIV("0b00") // Divide by 1 → 48 MHz
+    ) hfosc_inst (
+        .CLKHFEN(1'b1),    // Enable the HF oscillator
+        .CLKHFPU(1'b1),    // Power up the oscillator
+        .CLKHF(clk_48mhz)
+    );
+
+    // Parameters for 2 Hz blinking (toggle every 0.5s)
+    localparam int unsigned MAX_COUNT = 24_000_000 - 1;
+
+    // Counter and LED register
+    logic [24:0] counter = 0;
+
+    always_ff @(posedge clk_48mhz) begin
+        if (counter == MAX_COUNT) begin
+            counter <= 0;
+            led <= ~led;  // Toggle the LED
+        end else begin
+            counter <= counter + 1;
+        end
+    end
+
+endmodule
+```
+
+After testing this code, we realized that it didn't work, we copied the error message and tried the new code.
+
+```{verilog, code-fold: true}
+module led_blinker_2hz (
+    output logic led
+);
+
+    logic clk;
+
+    // Instantiate the OSC block
+    osc_0 osc_inst (
+        .clkout(clk)
+        // Add enable or other ports if necessary
+    );
+
+    // Blink at 2 Hz (assuming 48 MHz oscillator)
+    localparam int unsigned MAX_COUNT = 24_000_000 - 1;
+    logic [24:0] counter = 0;
+
+    always_ff @(posedge clk) begin
+        if (counter == MAX_COUNT) begin
+            counter <= 0;
+            led <= ~led;
+        end else begin
+            counter <= counter + 1;
+        end
+    end
+
+endmodule
+```
+
+After running this, it would still not work, This could be that mainly the system we are using and the way libraries have to be called are extremely specific and difficult for a general LLM model like ChatGPT to do without messing up.
+
+If I would continue trying to fix the errors with chat and think about possible promts I could add to induce debugging, it is defenitely possible to get a working code.
+
+### Lab 1 resources:
+
+Code:
+<https://github.com/cojedadesilva/E155lab1>

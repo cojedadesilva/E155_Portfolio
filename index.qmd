@@ -1,0 +1,15 @@
+---
+title: "E155 Portfolio"
+image: images/headshot.png
+about:
+  template: jolla
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/carlos-odes/
+---
+
+Carlos Ojeda is a Harvey Mudd Class of 2027 student who enjoys doing Engineering projetcs!
+
+
+To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
