@@ -256,7 +256,7 @@ endmodule</code></pre>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="images\lab2diagram.png" class="img-fluid figure-img"></p>
-<figcaption>top module Block Diagram</figcaption>
+<figcaption>Top module Block Diagram</figcaption>
 </figure>
 </div>
 <section id="error-from-last-lab" class="level4">
@@ -329,18 +329,89 @@ endmodule</code></pre>
 <section id="ai-prototype" class="level3">
 <h3 class="anchored" data-anchor-id="ai-prototype">AI Prototype</h3>
 <p>Using ChatGPT, we inputted the folowing prompt:</p>
-<p>Write SystemVerilog HDL to leverage the internal high speed oscillator in the Lattice UP5K FPGA and blink an LED at 2 Hz. Take full advantage of SystemVerilog syntax, for example, using logic instead of wire and reg.</p>
+<p>Write SystemVerilog HDL to time multiplex a single seven segment decoder (that decodes from four bits to a common anode seven segment display) to decode two sets of input bits and drive two sets of seven output bits.</p>
 <p>from which we got this code:</p>
-<pre class="{verilog, code-fold: true}"><code></code></pre>
-<p>After testing this code, we realized that it didn’t work, we copied the error message and tried the new code.</p>
-<pre class="{verilog, code-fold: true}"><code></code></pre>
-<p>After running this, it would still not work, This could be that mainly the system we are using and the way libraries have to be called are extremely specific and difficult for a general LLM model like ChatGPT to do without messing up.</p>
-<p>If I would continue trying to fix the errors with chat and think about possible promts I could add to induce debugging, it is defenitely possible to get a working code.</p>
+<pre class="{verilog, code-fold: true}"><code>module seven_segment_mux (
+    input logic clk,               // Clock input to drive time multiplexing
+    input logic rst_n,             // Active low reset
+    input logic [3:0] digit1,      // First 4-bit input digit (for first 7-segment display)
+    input logic [3:0] digit2,      // Second 4-bit input digit (for second 7-segment display)
+    output logic [6:0] seg1,       // 7-segment display 1 output (active low)
+    output logic [6:0] seg2        // 7-segment display 2 output (active low)
+);
+
+    // Internal signals
+    logic [3:0] current_digit;
+    logic [1:0] display_selector;  // 2-bit selector to multiplex between display 1 and display 2
+
+    // 7-segment decoder for common anode display
+    function [6:0] seg_decoder(input logic [3:0] digit);
+        case (digit)
+            4'b0000: seg_decoder = 7'b1111110; // 0
+            4'b0001: seg_decoder = 7'b0110000; // 1
+            4'b0010: seg_decoder = 7'b1101101; // 2
+            4'b0011: seg_decoder = 7'b1111001; // 3
+            4'b0100: seg_decoder = 7'b0110011; // 4
+            4'b0101: seg_decoder = 7'b1011011; // 5
+            4'b0110: seg_decoder = 7'b1011111; // 6
+            4'b0111: seg_decoder = 7'b1110000; // 7
+            4'b1000: seg_decoder = 7'b1111111; // 8
+            4'b1001: seg_decoder = 7'b1111011; // 9
+            default: seg_decoder = 7'b0000000; // Blank (invalid input)
+        endcase
+    endfunction
+
+    // Time multiplexing logic
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            display_selector &lt;= 2'b00; // Start with first display
+        end else begin
+            // Toggle the display selector every clock cycle
+            display_selector &lt;= display_selector + 1;
+        end
+    end
+
+    // Output logic: Multiplex between two sets of 7-segment displays
+    always_comb begin
+        case (display_selector)
+            2'b00: begin
+                current_digit = digit1;    // Drive the first 7-segment display
+                seg1 = seg_decoder(current_digit);
+                seg2 = 7'b1111111; // Turn off second display
+            end
+            2'b01: begin
+                current_digit = digit2;    // Drive the second 7-segment display
+                seg1 = 7'b1111111; // Turn off first display
+                seg2 = seg_decoder(current_digit);
+            end
+            2'b10: begin
+                current_digit = digit1;    // Drive the first 7-segment display
+                seg1 = seg_decoder(current_digit);
+                seg2 = 7'b1111111; // Turn off second display
+            end
+            2'b11: begin
+                current_digit = digit2;    // Drive the second 7-segment display
+                seg1 = 7'b1111111; // Turn off first display
+                seg2 = seg_decoder(current_digit);
+            end
+            default: begin
+                seg1 = 7'b1111111;
+                seg2 = 7'b1111111;
+            end
+        endcase
+    end
+
+endmodule
+</code></pre>
+<p>This code actually compiled, but it looks a bit off: -only goes from 0-9 it was never specified that it had to be hex to be fair. -only does low=high logic for the case(display_selector) but not for the seg_decoder, thsi can be fixed with a simple “~”. -It wasnts us to use 7 segment outputs, so instead of switching with the transistor by turnig power on and off, it turns the pins on and off. using more pins than needed.</p>
+<p>but I still think it was a high quality output since it did make something that compiled and has around 70% of the logic right, while only taking 2 min to make and test.</p>
+<p>The only part of the code that looks different to what I usually make is the use of a function. I imagined you always made a new module, but I think I can use it for Lab3 to make a demultiplexer.</p>
+<p>I believe if we dumb down the specifics (7 pins for display and 2 for power that switch back and forth) it would work well</p>
 </section>
 <section id="lab-2-resources" class="level3">
 <h3 class="anchored" data-anchor-id="lab-2-resources">Lab 2 resources:</h3>
-<p>Lab1 Code: <a href="https://github.com/cojedadesilva/E155lab1" class="uri">https://github.com/cojedadesilva/E155lab1</a></p>
-<p>Code: <a href="https://github.com/cojedadesilva/E155lab1" class="uri">https://github.com/cojedadesilva/E155lab1</a></p>
+<p>Lab1 Code: <a href="https://github.com/cojedadesilva/E155_Labcode_CODS/tree/main/lab1" class="uri">https://github.com/cojedadesilva/E155_Labcode_CODS/tree/main/lab1</a></p>
+<p>Code: <a href="https://github.com/cojedadesilva/E155_Labcode_CODS/tree/main/lab2" class="uri">https://github.com/cojedadesilva/E155_Labcode_CODS/tree/main/lab2</a></p>
 <p>HDSP-521A datasheet: <a href="https://docs.broadcom.com/doc/HDSP-521A-523A-Dual-Digit-General-Purpose-7-Segment-Display-DS" class="uri">https://docs.broadcom.com/doc/HDSP-521A-523A-Dual-Digit-General-Purpose-7-Segment-Display-DS</a></p>
 <p>Transistor datasheet: <a href="https://www.onsemi.com/pdf/datasheet/2n3906-d.pdf" class="uri">https://www.onsemi.com/pdf/datasheet/2n3906-d.pdf</a></p>
 
