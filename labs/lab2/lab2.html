@@ -250,7 +250,7 @@ module top(
 );
 logic [3:0] sout;
 leds_co leds_co(s1[3:0], s2[3:0], disps, sout[3:0], leds[4:0]);
-lab1_co lab1_co(sout[3:0], number[6:0]);
+sevseg sevseg(sout[3:0], number[6:0]);
 endmodule</code></pre>
 <p>This top module results in a block diagram that looks as follows:</p>
 <div class="quarto-figure quarto-figure-center">
@@ -259,15 +259,29 @@ endmodule</code></pre>
 <figcaption>Top module Block Diagram</figcaption>
 </figure>
 </div>
-<section id="error-from-last-lab" class="level4">
-<h4 class="anchored" data-anchor-id="error-from-last-lab">Error from last lab:</h4>
-<p>In teh previous lab, we used 5v as the V_in of the 7 segment display, which makes the display bleed a bit of current into every LED when off since 3.3v &lt; 5v. This was fixed by changing the V_in to 3.3v and recalculating the required resistance to be:</p>
+<section id="curcuit-calculations" class="level4">
+<h4 class="anchored" data-anchor-id="curcuit-calculations">Curcuit calculations:</h4>
+<p>In the previous lab, we used 5v as the V_in of the 7 segment display, which makes the display bleed a bit of current into every LED when off since 3.3v &lt; 5v. This was fixed by changing the V_in to 3.3v and recalculating the required resistance to be:</p>
+<p>Math for the yellow LED’s for the 5bit display, in this case, the FPGA is not recommended to use over 8mA and the yellow LED has a 2v drop, so:</p>
 <p><span class="math display">\[
-0.010 &gt; \frac{3.3-2.1}{R}
+0.008 &gt; \frac{3.3-2}{R}
 \]</span> <span class="math display">\[
-R &gt; 120
+R &gt; 130
 \]</span></p>
-<p>In this case, we also chose 10mA since the datasheet does recommend a value closer to that, and it was very visible. The selected value was 160Ω. This value was also used for the normal LED’s used in the fulladder since they have similar current needs and voltage drops.</p>
+<p>For these LED’s, we used a 160Ω resistor</p>
+<p>Voltage drop of around 0.4V in the transistor, a red LED has a voltage drop of around 1.8v at the current we are driving them at, so:</p>
+<p><span class="math display">\[
+0.010 &gt; \frac{3.3-0.4-1.8}{R}
+\]</span> <span class="math display">\[
+R &gt; 110
+\]</span></p>
+<p>For the transisitor, we need to calculate the resistor that we will connect to the base: The desired base current is between 2-3 mA based on the datasheet and our desired output current (up to 70mA) and the voltage drop would be around 0.95V:</p>
+<p><span class="math display">\[
+R = \frac{0.95}{0.0025}
+\]</span> <span class="math display">\[
+R = 380
+\]</span></p>
+<p>In this case, we also chose 10mA for the 7 segment display since the datasheet does recommend a value closer to that, and it was very visible. The selected value was 160Ω. This value was also used for the normal LED’s used in the fulladder since they have similar current needs and voltage drops.</p>
 <p>This also corresponds to teh current ratings of teh 2N3906 Transistor we are using, which allows a maximum of 200mA to be drawn, meaning that having all segments on (7 per transistor) results in a total current draw of &lt;70mA.</p>
 </section>
 </section>
@@ -321,7 +335,19 @@ endmodule</code></pre>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="images\lab2testbench.png" class="img-fluid figure-img"></p>
-<figcaption>Lab2 Testbench</figcaption>
+<figcaption>Top Testbench Trace</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images\Lab1tb_sevseg.png" class="img-fluid figure-img"></p>
+<figcaption>Seven Segment Testbench Trace</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images\Lab2tb_ledlogic.png" class="img-fluid figure-img"></p>
+<figcaption>Multiplexing/LED logic Testbench Trace</figcaption>
 </figure>
 </div>
 <p>This test bench showed that the system works for any of these inputs, but there are a total of 16x16x2 = 512 possible inputs, so take into consideration that some real world testing may be needed to verify it always works, or expand the testbench.</p>
