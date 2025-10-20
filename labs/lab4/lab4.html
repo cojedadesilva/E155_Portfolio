@@ -67,6 +67,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../styles.css">
 </head>
@@ -151,7 +180,13 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#lab-4-digital-audio" id="toc-lab-4-digital-audio" class="nav-link active" data-scroll-target="#lab-4-digital-audio">Lab 4: Digital Audio</a></li>
+  <li><a href="#lab-4-digital-audio" id="toc-lab-4-digital-audio" class="nav-link active" data-scroll-target="#lab-4-digital-audio">Lab 4: Digital Audio</a>
+  <ul class="collapse">
+  <li><a href="#electrical-schematic" id="toc-electrical-schematic" class="nav-link" data-scroll-target="#electrical-schematic">Electrical schematic</a></li>
+  <li><a href="#design-choices-and-math" id="toc-design-choices-and-math" class="nav-link" data-scroll-target="#design-choices-and-math">Design Choices and Math:</a></li>
+  <li><a href="#ai-prototype" id="toc-ai-prototype" class="nav-link" data-scroll-target="#ai-prototype">AI Prototype</a></li>
+  <li><a href="#resources" id="toc-resources" class="nav-link" data-scroll-target="#resources">Resources</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -163,8 +198,64 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="lab-4-digital-audio" class="level2">
 <h2 class="anchored" data-anchor-id="lab-4-digital-audio">Lab 4: Digital Audio</h2>
+<p>In this lab, we made a melody player code for a STM32L4 microcontroller where we can control the frequency and timing of musical notes.</p>
+<p>This lab took 24 hours</p>
+<section id="electrical-schematic" class="level3">
+<h3 class="anchored" data-anchor-id="electrical-schematic">Electrical schematic</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images\Lab4schematic.png" class="img-fluid figure-img"></p>
+<figcaption>Electrical Schematic</figcaption>
+</figure>
+</div>
+</section>
+<section id="design-choices-and-math" class="level3">
+<h3 class="anchored" data-anchor-id="design-choices-and-math">Design Choices and Math:</h3>
+<p>We chose TIM2 because it has 32 bits and it is easy to change frequency by alering the ARR and SRC values</p>
+<p>Minimum frequency</p>
+<p>Since our PSC is 39, and ARR is a 32 bit number, the maximum value it could have is, the maximum possible frequency (tested) is when ARR is 1, or: 4,000,000/((39+1)(2^32))/2 = 1.164x10^-5 Hz, we divide by 2 because we toggle every cycle.</p>
+<p>Maximum frequency</p>
+<p>Since our PSC is 39, the maximum possible frequency (tested) is when ARR is 1, or: 4,000,000/((39+1)(1+1))/2 = 25kHz, we divide by 2 because we toggle every cycle.</p>
+<p>Minimum delay</p>
+<p>since our maximum frequency is 25kHz, the minimum delay we can do is 1/(2*25,000) or 0.2ms</p>
+<p>Maximum delay</p>
+<p>since our minimum frequency is 1.164x10^-5 Hz, we get: 1/(2*1.164x10^-5) = 42950s or 11:55:50 hours (11.93)</p>
+<p>Frequency within 1%</p>
+<p>Worst case escenario we get an ARR that is at most 0.5 off, so: <span class="math display">\[
+ARR = \frac{2,000,000}{40*f_d} - 1
+\]</span> And therefore: <span class="math display">\[
+f_d = \frac{2,000,000}{40*(ARR+1)}
+\]</span> We then calculate the worst case escenario frequency change when changing ARR by 0.5 (it will get rounded, so it can be at most off by 0.5) <span class="math display">\[
+\frac{df}{dARR} = \frac{-2,000,000}{40*(ARR+1)^2}
+\]</span> now, we can calculate the percent error by multiplying by 0.5 and dividing by desired frequency: <span class="math display">\[
+error = \frac{-2,000,000}{40*f_d*(ARR+1)^2} = \frac{1}{2(ARR+1)}
+\]</span> for 1% error, the maximum ARR accepted is: <span class="math display">\[
+0.01 &gt;= \frac{1}{2(ARR+1)}
+\]</span> ARR &gt;= 49</p>
+<p>ARR of 49 corresponds to a frequency of: <span class="math display">\[
+f_d = \frac{2,000,000}{40*(49+1)} = 1000 Hz
+\]</span></p>
+<p>And since we can get way larger ARR values, the clock does tick within 1% of the frequency in all frequencies between 220 and 1000 Hz</p>
+</section>
+<section id="ai-prototype" class="level3">
+<h3 class="anchored" data-anchor-id="ai-prototype">AI Prototype</h3>
+<p>After asking ChatGPT, we got the following response:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images\Lab4_AIPrototype.png" class="img-fluid figure-img"></p>
+<figcaption>AI Prototype</figcaption>
+</figure>
+</div>
+<p>This is similar to what we concluded, where we chose Timer 2 since it seemed easier to use and has the ability to count up to 32 bits, which since we were originally considering using timer overflow to control notes instead of number of clock cycles we used in the end. this also made me understand better the math behind it.</p>
+</section>
+<section id="resources" class="level3">
+<h3 class="anchored" data-anchor-id="resources">Resources</h3>
+<p>Lab 4 code: <a href="https://github.com/cojedadesilva/E155_Labcode_CODS/tree/main/lab4" class="uri">https://github.com/cojedadesilva/E155_Labcode_CODS/tree/main/lab4</a></p>
+<p>Audio Amplifier <a href="https://www.ti.com/lit/ds/symlink/lm386.pdf" class="uri">https://www.ti.com/lit/ds/symlink/lm386.pdf</a></p>
+<p>Math in Desmos: <a href="https://www.desmos.com/calculator/p6powqxlh8" class="uri">https://www.desmos.com/calculator/p6powqxlh8</a></p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
